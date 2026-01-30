@@ -373,8 +373,14 @@ bot.action('bank', (ctx) => {
 });
 
 export function launchBot() {
+    bot.telegram.setMyCommands([
+        { command: 'play', description: 'Start a new game' },
+        { command: 'help', description: 'Show rules and scoring' },
+        { command: 'stop', description: 'Stop the current game' }
+    ]);
+
     bot.launch();
-    console.log('Bot started!');
+    console.log('Bot started and commands registered!');
 
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
