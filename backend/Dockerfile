@@ -1,20 +1,25 @@
-# Используем Node.js как базовый образ
-FROM node:18-slim
+# --- Build Stage ---
+FROM node:18-slim AS builder
 
-# Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы зависимостей
 COPY package*.json ./
-
-# Устанавливаем зависимости
 RUN npm install
 
-# Копируем исходный код
 COPY . .
-
-# Собираем TypeScript код
 RUN npm run build
 
-# Команда для запуска бота
+# --- production Stage ---
+FROM node:18-slim
+
+WORKDIR /app
+
+# Copy package.json and install only production dependencies
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Copy compiled code from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Command to run the bot
 CMD ["npm", "start"]

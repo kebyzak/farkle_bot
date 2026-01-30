@@ -143,7 +143,43 @@ function handleTurnStart(chatId: number, ctx: Context, game: GameState, isFirstT
 // --- Commands ---
 
 bot.command('start', (ctx) => {
-    ctx.reply('Welcome to Farkle! Use /play to create a lobby.');
+    ctx.reply('Welcome to Farkle! Use /play to create a lobby or /help to see the rules.');
+});
+
+bot.command('help', (ctx) => {
+    const helpMsg = `🎲 *Farkle Rulebook*
+
+*Objective:* Be the first player to reach *10,000 points*.
+
+*Gameplay:*
+1. Roll 6 dice to start your turn.
+2. You must select at least one "scoring die" to continue.
+3. After selecting, you can:
+   • *Roll Again:* Roll the remaining dice to increase your turn score.
+   • *Bank:* Save your current turn score and end your turn.
+4. *Farkle:* If a roll contains no scoring dice, you lose all points accumulated during that turn.
+5. *Hot Dice:* If all 6 dice become scoring dice, you can roll all 6 again and keep adding to your score!
+
+*Scoring Combinations:*
+• 1️⃣ = 100 pts
+• 5️⃣ = 50 pts
+• Three 1's = 300 pts
+• Three 2's = 200 pts
+• Three 3's = 300 pts
+• Three 4's = 400 pts
+• Three 5's = 500 pts
+• Three 6's = 600 pts
+• 4-of-a-kind = 1000 pts
+• 5-of-a-kind = 2000 pts
+• 6-of-a-kind = 3000 pts
+
+*Special 6-Dice Combos:*
+• *Straight (1-6):* 1500 pts
+• *Three Pairs:* 1500 pts
+• *Two Triplets:* 2500 pts
+• *Full House (4-of-a-kind + Pair):* 1500 pts`;
+
+    ctx.reply(helpMsg, { parse_mode: 'Markdown' });
 });
 
 bot.command('stop', (ctx) => {
@@ -165,8 +201,8 @@ bot.command('play', (ctx) => {
     const chatId = ctx.chat.id;
     let game = gameManager.getGame(chatId);
 
-    // If no game, create lobby
-    if (!game) {
+    // If no game or game is finished, create lobby
+    if (!game || game.status === 'FINISHED') {
         game = gameManager.createGame(chatId, ctx.from.id);
         // Auto-join creator
         gameManager.addPlayer(chatId, {

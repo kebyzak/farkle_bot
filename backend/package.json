@@ -4,7 +4,8 @@
     "description": "Farkle Telegram Bot",
     "main": "dist/index.js",
     "scripts": {
-        "start": "ts-node src/index.ts",
+        "start": "node dist/index.js",
+        "dev": "ts-node src/index.ts",
         "build": "tsc"
     },
     "dependencies": {
