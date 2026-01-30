@@ -1,0 +1,7 @@
+services:
+  farkle-bot:
+    build: ./backend
+    container_name: farkle-bot
+    restart: always
+    env_file:
+      - ./backend/.env
