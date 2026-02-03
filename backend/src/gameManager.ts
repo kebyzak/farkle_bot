@@ -80,9 +80,30 @@ export class GameManager {
         game.turnScore = 0;
         game.accumulatedScore = 0;
         game.lockedIndices = [];
-        // First roll is 6 dice
+        // Do not roll yet. Wait for user to click "Roll".
+        game.currentDice = [];
+        return false;
+    }
+
+    rollInitial(chatId: number, userId: number): { success: boolean, message: string, farkle?: boolean, gameOver?: boolean } {
+        const game = this.games.get(chatId);
+        if (!game || game.status !== 'PLAYING') return { success: false, message: 'Game not active' };
+
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        if (currentPlayer.id !== userId) return { success: false, message: 'Not your turn' };
+
+        // Roll 6 dice
         game.currentDice = rollDice(6);
-        return calculateScore(game.currentDice) === 0;
+        game.lockedIndices = [];
+
+        const potentialScore = calculateScore(game.currentDice);
+        if (potentialScore === 0) {
+            game.accumulatedScore = 0;
+            // Do NOT call nextTurn yet. Bot will do it after delay.
+            return { success: true, message: 'FARKLE!', farkle: true };
+        }
+
+        return { success: true, message: 'Rolled!' };
     }
 
     toggleLock(chatId: number, userId: number, dieIndex: number): boolean {
@@ -102,7 +123,7 @@ export class GameManager {
 
     // Returns true if valid move (reroll successful)
     // Returns false if invalid selection (no scoring dice) or farkle
-    confirmSelectionAndRoll(chatId: number, userId: number): { success: boolean, message: string, farkle?: boolean } {
+    confirmSelectionAndRoll(chatId: number, userId: number): { success: boolean, message: string, farkle?: boolean, gameOver?: boolean } {
         const game = this.games.get(chatId);
         if (!game || game.status !== 'PLAYING') return { success: false, message: 'Game not active' };
 
@@ -122,12 +143,6 @@ export class GameManager {
 
         const score = calculateScore(selectedDice);
 
-        // Check if user selected ALL scoring dice?
-        // Usually you can select a subset, but that subset must score.
-        // My calculateScore logic might handle subsets correctly if the subset itself is valid.
-        // e.g. Roll 1, 5, 2. Select 1. Score 100. Valid.
-        // Select 2. Score 0. Invalid.
-
         // Add score
         game.accumulatedScore += score;
 
@@ -145,30 +160,18 @@ export class GameManager {
         game.currentDice = newDice;
         game.lockedIndices = []; // Reset selection for new roll
 
-        // Check for FARKLE (no scoring combos in NEW roll)
-        // Wait, "Farkle" means NO SCORING DICE in the *new* roll.
-        // So we need to check if proper max score of new roll is > 0.
-        // Or specific dice?
-        // Usually Farkle happens if you roll and get 0 potential points.
-        // We can check this by passing all dice to calculateScore?
-        // Wait, calculateScore(allDice) might return 0 if no scoring dice.
-        // But calculateScore logic is tricky with combinations.
-        // Simplest check:
-        // Any 1s? Yes -> score.
-        // Any 5s? Yes -> score.
-        // Any triples? Yes -> score.
-        // Straight? Yes.
-        // Pairs? Yes.
-        // If calculateScore(newDice) > 0 does NOT mean there are scoring dice?
-        // Wait, `calculateScore` returns total score of the hand. 
-        // If the hand has absolutely no scoring features, it returns 0.
-        // So yes, `calculateScore(newDice) === 0` implies Farkle.
-
         const potentialScore = calculateScore(newDice);
         if (potentialScore === 0) {
             // FARKLE!
             game.accumulatedScore = 0; // Lost turn score
-            this.nextTurn(game);
+            // Do NOT call nextTurn() here. Bot will handle delay and then call nextTurn.
+
+            // Check if final round complete (everyone had their last turn)
+            if (game.finalRound && game.currentPlayerIndex === game.firstToReach10k) {
+                game.status = 'FINISHED';
+                return { success: true, message: 'FARKLE! Game Over!', farkle: true, gameOver: true };
+            }
+
             return { success: true, message: 'FARKLE!', farkle: true };
         }
 
@@ -181,19 +184,6 @@ export class GameManager {
 
         const currentPlayer = game.players[game.currentPlayerIndex];
         if (currentPlayer.id !== userId) return { success: false, message: 'Not your turn' };
-
-        // Must have some accumulated score OR selected dice to score now.
-        // Usually "Bank" means stop rolling.
-        // If there are currently locked dice, we score them and then bank.
-        // If no locked dice, we bank `accumulatedScore`.
-        // But wait, user needs to lock dice first usually?
-        // Or can they just roll, see dice, and say "Bank" (taking all scoring dice?)?
-        // User rules: "Lock any dice... then roll again... When you decide to stop... record your points."
-        // Usually you select dice -> Add to temp score -> decide to Roll or Bank.
-        // So the flow should be:
-        // 1. Roll.
-        // 2. Select Dice (Lock).
-        // 3. EITHER "Roll Again" (confirms selection, rolls remaining) OR "Bank" (confirms selection, adds to total, next turn).
 
         if (game.lockedIndices.length > 0) {
             const selectedDice = game.lockedIndices.map(i => game.currentDice[i]);
