@@ -33,9 +33,15 @@ class RateLimitQueue {
             try {
                 const result = await this.executeWithRetry(item.task);
                 item.resolve(result);
-            } catch (e) {
-                console.error("Task failed permanently:", e);
-                item.reject(e);
+            } catch (e: any) {
+                // Ignore "message is not modified" errors (harmless)
+                if (e.response && e.response.error_code === 400 && e.response.description && e.response.description.includes('message is not modified')) {
+                    // console.warn("⚠️ Message not modified (ignoring).");
+                    item.resolve(null);
+                } else {
+                    console.error("Task failed permanently:", e);
+                    item.reject(e);
+                }
             }
 
             // Global throttle buffer to be safe (e.g., 100ms between processing attempts)
@@ -230,7 +236,7 @@ bot.command('help', (ctx) => {
 *Scoring Combinations:*
 • 1️⃣ = 100 pts
 • 5️⃣ = 50 pts
-• Three 1's = 1000 pts
+• Three 1's = 300 pts
 • Three 2's = 200 pts
 • Three 3's = 300 pts
 • Three 4's = 400 pts

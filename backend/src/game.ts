@@ -75,7 +75,7 @@ export function calculateScore(dice: DieValue[]): number {
         if (count >= 3) {
             // Three of a kind base scores
             let baseScore = 0;
-            if (num === 1) baseScore = 1000;
+            if (num === 1) baseScore = 300;
             else if (num === 2) baseScore = 200;
             else if (num === 3) baseScore = 300;
             else if (num === 4) baseScore = 400;
